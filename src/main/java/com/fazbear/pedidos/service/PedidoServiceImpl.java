@@ -48,9 +48,8 @@ public class PedidoServiceImpl implements PedidoService {
             // Calcular total automáticamente si no viene en el cuerpo
             if (pedido.getTotal() == null || pedido.getTotal().compareTo(BigDecimal.ZERO) == 0) {
                 BigDecimal total = pedido.getItems().stream()
-                        .map(i -> i.getPrecioUnitario()
-                                .multiply(BigDecimal.valueOf(i.getCantidad())))
-                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                .map(i -> i.getPrecioUnitario().multiply(BigDecimal.valueOf(i.getCantidad())))
+                .reduce(BigDecimal.ZERO, (a, b) -> a.add(b));
                 pedido.setTotal(total);
             }
         }
