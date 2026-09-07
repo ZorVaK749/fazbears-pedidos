@@ -5,6 +5,7 @@ import com.fazbear.pedidos.model.Pedido;
 import com.fazbear.pedidos.service.PedidoService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,7 +17,7 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/pedidos")
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "${app.cors.allowed-origins}")
 public class PedidoController {
 
     private final PedidoService pedidoService;
@@ -81,6 +82,7 @@ public class PedidoController {
      * Body: { "estado": "PREPARANDO" }
      */
     @PutMapping("/{id}/estado")
+    @PreAuthorize("hasRole('Admin')")
     public ResponseEntity<Pedido> updateEstado(@PathVariable Long id,
                                                @RequestBody Map<String, String> body) {
         String estadoStr = body.get("estado");
@@ -103,6 +105,7 @@ public class PedidoController {
      * Elimina un pedido por ID.
      */
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('Admin')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         if (pedidoService.findById(id).isEmpty()) {
             return ResponseEntity.notFound().build();
