@@ -16,7 +16,7 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/pedidos")
-@CrossOrigin(origins = "https://35.175.9.254")
+@CrossOrigin(origins = "https://w8xu8o4pd7.execute-api.us-east-1.amazonaws.com")
 public class PedidoController {
 
     private final PedidoService pedidoService;
