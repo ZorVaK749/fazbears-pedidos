@@ -30,6 +30,7 @@ public class PedidoController {
      * GET /api/pedidos
      * Lista todos los pedidos (uso interno / admin).
      */
+    @PreAuthorize("hasRole('Admin') or hasRole('Despachador')")
     @GetMapping
     public ResponseEntity<List<Pedido>> getAll() {
         return ResponseEntity.ok(pedidoService.findAll());
@@ -39,6 +40,7 @@ public class PedidoController {
      * GET /api/pedidos/{id}
      * Retorna un pedido específico por ID.
      */
+    @PreAuthorize("hasRole('Admin') or hasRole('Despachador') or hasRole('Cliente')")
     @GetMapping("/{id}")
     public ResponseEntity<Pedido> getById(@PathVariable Long id) {
         return pedidoService.findById(id)
@@ -51,6 +53,7 @@ public class PedidoController {
      * Lista todos los pedidos de un usuario (por ID del JWT claim 'sub').
      * En desarrollo local se puede pasar cualquier string como usuarioId.
      */
+    @PreAuthorize("hasRole('Admin') or hasRole('Despachador') or hasRole('Cliente')")
     @GetMapping("/usuario/{usuarioId}")
     public ResponseEntity<List<Pedido>> getByUsuario(@PathVariable String usuarioId) {
         return ResponseEntity.ok(pedidoService.findByUsuarioId(usuarioId));
@@ -69,6 +72,7 @@ public class PedidoController {
      *   ]
      * }
      */
+    @PreAuthorize("hasRole('Admin') or hasRole('Cliente') or hasRole('Despachador')")
     @PostMapping
     public ResponseEntity<Pedido> create(@RequestBody Pedido pedido) {
         Pedido saved = pedidoService.save(pedido);
@@ -81,6 +85,7 @@ public class PedidoController {
      *
      * Body: { "estado": "PREPARANDO" }
      */
+    @PreAuthorize("hasRole('Admin') or hasRole('Despachador')")
     @PutMapping("/{id}/estado")
     @PreAuthorize("hasRole('Admin')")
     public ResponseEntity<Pedido> updateEstado(@PathVariable Long id,
@@ -104,6 +109,7 @@ public class PedidoController {
      * DELETE /api/pedidos/{id}
      * Elimina un pedido por ID.
      */
+    @PreAuthorize("hasRole('Admin')")
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('Admin')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
