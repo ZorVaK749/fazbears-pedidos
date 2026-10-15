@@ -6,5 +6,6 @@ package com.fazbear.pedidos.model;
 public enum EstadoPedido {
     PENDIENTE,
     PREPARANDO,
-    COMPLETADO
+    COMPLETADO,
+    CANCELADO
 }
