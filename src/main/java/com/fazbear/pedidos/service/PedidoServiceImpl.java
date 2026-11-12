@@ -5,6 +5,9 @@ import com.fazbear.pedidos.model.ItemPedido;
 import com.fazbear.pedidos.model.Pedido;
 import com.fazbear.pedidos.repository.PedidoRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -62,6 +65,19 @@ public class PedidoServiceImpl implements PedidoService {
             pedido.setEstado(nuevoEstado);
             return pedidoRepository.save(pedido);
         });
+    }
+
+    @Override
+    @Transactional
+    public Optional<Pedido> cancelOwned(Long id, String owner) {
+        int updated = pedidoRepository.cancelPendingOwned(id, owner);
+        Optional<Pedido> pedido = pedidoRepository.findById(id)
+            .filter(p -> owner.equals(p.getUsuarioId()));
+        if (pedido.isPresent() && updated == 0 && pedido.get().getEstado() != EstadoPedido.CANCELADO) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Solo se puede cancelar un pedido PENDIENTE");
+        }
+        // Repetir cancelación propia ya confirmada es idempotente; ajeno/inexistente es 404.
+        return pedido;
     }
 
     @Override

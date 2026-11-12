@@ -19,14 +19,13 @@ public class Pedido {
     private Long id;
 
     /**
-     * ID del usuario extraído del claim 'sub' del JWT.
-     * En desarrollo local se puede enviar manualmente.
+     * oid verificado dentro del único tenant permitido. No sub/email libre del cliente.
      */
     @Column(name = "usuario_id", nullable = false, length = 100)
     private String usuarioId;
 
     /**
-     * Email extraído del claim 'preferred_username' del JWT.
+     * Contacto recibido del request; no es identidad ni concede autorización.
      */
     @Column(name = "email_usuario", nullable = false, length = 150)
     private String emailUsuario;

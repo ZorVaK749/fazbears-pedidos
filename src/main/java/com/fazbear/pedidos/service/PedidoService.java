@@ -26,6 +26,9 @@ public interface PedidoService {
     /** Actualiza el estado de un pedido */
     Optional<Pedido> updateEstado(Long id, EstadoPedido nuevoEstado);
 
+    /** Cancelación propia condicionada a PENDIENTE, sin carrera read/write. */
+    Optional<Pedido> cancelOwned(Long id, String owner);
+
     /** Elimina un pedido */
     void deleteById(Long id);
 }
