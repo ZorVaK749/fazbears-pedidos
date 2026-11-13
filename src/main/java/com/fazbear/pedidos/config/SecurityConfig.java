@@ -64,6 +64,7 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/h2-console/**").permitAll()
+                .requestMatchers("/internal/pedidos/pagados").permitAll()
                 .requestMatchers("/api/pedidos/**").authenticated()
                 .anyRequest().authenticated()
             )

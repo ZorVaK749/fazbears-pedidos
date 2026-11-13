@@ -18,6 +18,23 @@ public class Pedido {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "operacion_id", unique = true)
+    private java.util.UUID operacionId;
+    @Column(name = "pago_id", unique = true)
+    private java.util.UUID pagoId;
+    @Column(name = "tenant_id")
+    private java.util.UUID tenantId;
+    @Column(name = "payment_status", length = 30)
+    private String paymentStatus;
+    @Column(nullable = false)
+    private boolean simulacion;
+
+    public java.util.UUID getOperacionId() { return operacionId; }
+    public java.util.UUID getPagoId() { return pagoId; }
+    public java.util.UUID getTenantId() { return tenantId; }
+    public String getPaymentStatus() { return paymentStatus; }
+    public boolean isSimulacion() { return simulacion; }
+
     /**
      * oid verificado dentro del único tenant permitido. No sub/email libre del cliente.
      */
