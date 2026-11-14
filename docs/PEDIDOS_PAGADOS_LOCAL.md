@@ -1,4 +1,10 @@
-# Paid simulated orders — EV3 local
+# Paid simulated orders — EV3 PostgreSQL
+
+AWS13/11: `Dockerfile.aws`, perfil `ev3-aws`, sin LAB JWKS; POST público legado
+se bloquea409 para exigir flujo de Pago verificado. Los perfiles EV2 conservan
+su comportamiento. Nunca reiniciar Carrito/Pedidos EV2 H2 para instalar esto:
+preservación de memoria viva y migración aprobada son prerrequisitos. GHCR manual
+opt-in, no despliegue. Runbook en repo Pago `docs/AWS_DEPLOY_ROLLBACK.md`.
 
 `Dockerfile.local`, `SPRING_PROFILES_ACTIVE=ev3-local`, port **8080**.
 Use a NEW dedicated PostgreSQL database: `PEDIDOS_DB_URL`, `PEDIDOS_DB_USER`, `PEDIDOS_DB_PASSWORD`.
@@ -7,7 +13,7 @@ Flyway migrates, Hibernate validates, no automatic SQL seeds or H2 console. Hist
 Optional `LOCAL_JWT_JWK_SET_URI` is mapped only by this profile; issuer/audience/tenant stay Azure-compatible.
 
 `POST /internal/pedidos/pagados` requires **X-Service-Key**, not an owner JWT or fabricated admin role.
-Active only under `ev3-local` (404 outside it). Body:
+Active under `ev3-local` or `ev3-aws` (404 outside them). Body:
 
 ```json
 {"operacionId":"uuid","pagoId":"uuid","tenantId":"uuid","ownerId":"uuid",

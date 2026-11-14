@@ -12,9 +12,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
-/** Service credential only; never an owner/admin JWT bypass. Active only in isolated local integration. */
+/** Service credential only; never an owner/admin JWT bypass. Requires dedicated PostgreSQL. */
 @RestController
-@Profile("ev3-local")
+@Profile({"ev3-local", "ev3-aws"})
 public class InternalPaidPedidoController {
     public record Item(Long productoId,String nombreProducto,Integer cantidad,BigDecimal precioUnitario) {}
     public record Paid(UUID operacionId,UUID pagoId,UUID tenantId,UUID ownerId,BigDecimal importe,

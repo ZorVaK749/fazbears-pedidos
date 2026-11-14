@@ -24,6 +24,8 @@ public class PedidoController {
 
     private final PedidoService pedidoService;
     private final PedidoAuthorization authorization;
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.core.env.Environment environment;
 
     public PedidoController(PedidoService pedidoService, PedidoAuthorization authorization) {
         this.pedidoService = pedidoService;
@@ -78,6 +80,10 @@ public class PedidoController {
     @PostMapping
     public ResponseEntity<Pedido> create(@RequestBody CrearPedidoRequest request, @AuthenticationPrincipal Jwt jwt) {
         String owner = authorization.owner(jwt);
+        if (environment.matchesProfiles("ev3-aws")) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                HttpStatus.CONFLICT, "USE_VERIFIED_PAYMENT_FLOW");
+        }
         if (request.usuarioId() != null) authorization.requireOwner(jwt, request.usuarioId());
         // Orden crea PENDIENTE. No permitir que un usuario declare estados administrativos.
         if (request.estado() != null && request.estado() != EstadoPedido.PENDIENTE) {
