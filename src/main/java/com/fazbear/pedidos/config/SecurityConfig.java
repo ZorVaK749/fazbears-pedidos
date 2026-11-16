@@ -14,6 +14,7 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtDecoders;
 import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -63,6 +64,7 @@ public class SecurityConfig {
             .cors(Customizer.withDefaults())
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers(HttpMethod.OPTIONS, "/api/pedidos/**", "/api/pedidos").permitAll()
                 .requestMatchers("/h2-console/**").permitAll()
                 .requestMatchers("/internal/pedidos/pagados").permitAll()
                 .requestMatchers("/api/pedidos/**").authenticated()
@@ -80,11 +82,12 @@ public class SecurityConfig {
         cors.setAllowedOrigins(List.of("https://p5gsy16utd.execute-api.us-east-1.amazonaws.com",
             "http://localhost:4200"));
         cors.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        cors.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        cors.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"));
         cors.setAllowCredentials(false);
         cors.setMaxAge(3600L);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/pedidos/**", cors);
+        source.registerCorsConfiguration("/api/pedidos", cors);
         return source;
     }
 }

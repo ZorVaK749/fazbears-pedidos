@@ -205,9 +205,13 @@ class PedidoSecurityIntegrationTests extends LocalJwtTestSupport {
         for (String method : new String[]{"GET", "POST", "PUT", "DELETE"}) {
             mvc.perform(options(BASE + "/1/estado").header("Origin", origin)
                 .header("Access-Control-Request-Method", method)
-                .header("Access-Control-Request-Headers", "authorization,content-type"))
+                .header("Access-Control-Request-Headers", "authorization,content-type,accept,origin,x-requested-with"))
                 .andExpect(status().isOk()).andExpect(header().string("Access-Control-Allow-Origin", origin));
         }
+        mvc.perform(options(BASE).header("Origin", origin)
+            .header("Access-Control-Request-Method", "GET")
+            .header("Access-Control-Request-Headers", "authorization,content-type,accept,origin,x-requested-with"))
+            .andExpect(status().isOk()).andExpect(header().string("Access-Control-Allow-Origin", origin));
         mvc.perform(get(BASE).header("Origin", origin)).andExpect(status().isUnauthorized())
             .andExpect(header().string("Access-Control-Allow-Origin", origin));
     }
