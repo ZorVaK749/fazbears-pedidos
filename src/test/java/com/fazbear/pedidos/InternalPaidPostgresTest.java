@@ -24,14 +24,14 @@ class InternalPaidPostgresTest {
         ds.setUrl(System.getenv("TEST_DATABASE_URL")+(System.getenv("TEST_DATABASE_URL").contains("?")?"&":"?")+"currentSchema="+schema);
         db=new JdbcTemplate(ds); tx=new TransactionTemplate(new DataSourceTransactionManager(ds));
         Flyway.configure().dataSource(ds).schemas(schema).load().migrate();
-        controller=new InternalPaidPedidoController(db,"test-service-key",tenant);
+        controller=new InternalPaidPedidoController(db,new DataSourceTransactionManager(ds),"test-service-key",tenant);
     }
     @AfterEach void cleanup() { if(db!=null) db.execute("drop schema "+schema+" cascade"); }
     Paid request(UUID operation,UUID payment,UUID owner,String total) {
         return new Paid(operation,payment,UUID.fromString(tenant),owner,new BigDecimal(total),"CLP",true,
             List.of(new Item(1L,"Pizza",2,new BigDecimal("1250.00"))));
     }
-    Map<String,Object> create(Paid p) { return tx.execute(s -> controller.create("test-service-key",p)); }
+    Map<String,Object> create(Paid p) { return controller.create("test-service-key",p); }
     @Test void serviceKeyTotalAndIdempotentReferences() {
         var op=UUID.randomUUID(); var payment=UUID.randomUUID(); var owner=UUID.randomUUID(); var p=request(op,payment,owner,"2500.00");
         assertThrows(ResponseStatusException.class,() -> tx.execute(s -> controller.create("wrong",p)));

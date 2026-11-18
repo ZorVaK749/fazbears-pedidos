@@ -6,13 +6,16 @@ import java.security.MessageDigest;
 import java.util.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
-/** Service credential only; never an owner/admin JWT bypass. Requires dedicated PostgreSQL. */
+/** Registers confirmed simulated payments using a trusted service credential. */
 @RestController
 @Profile({"ev3-local", "ev3-aws"})
 public class InternalPaidPedidoController {
@@ -20,14 +23,16 @@ public class InternalPaidPedidoController {
     public record Paid(UUID operacionId,UUID pagoId,UUID tenantId,UUID ownerId,BigDecimal importe,
                        String moneda,boolean simulacion,List<Item> items) {}
     private final JdbcTemplate db;
+    private final TransactionTemplate transaction;
     private final String key,tenant;
-    public InternalPaidPedidoController(JdbcTemplate db,@Value("${checkout.service-key}") String key,
+    public InternalPaidPedidoController(JdbcTemplate db, PlatformTransactionManager transactionManager,
+            @Value("${checkout.service-key}") String key,
             @Value("${spring.security.oauth2.resourceserver.jwt.tenant-id}") String tenant) {
         if (key.isBlank()) throw new IllegalArgumentException("INTERNAL_SERVICE_KEY required");
         this.db=db; this.key=key; this.tenant=tenant;
+        this.transaction = new TransactionTemplate(transactionManager);
     }
     @PostMapping("/internal/pedidos/pagados")
-    @Transactional
     public Map<String,Object> create(@RequestHeader(value="X-Service-Key",required=false) String supplied,@RequestBody Paid p) {
         if (supplied==null || !MessageDigest.isEqual(key.getBytes(StandardCharsets.UTF_8),supplied.getBytes(StandardCharsets.UTF_8)))
             throw error(HttpStatus.UNAUTHORIZED,"INVALID_SERVICE_KEY");
@@ -49,20 +54,50 @@ public class InternalPaidPedidoController {
         String fingerprint;
         try { fingerprint=new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(p); }
         catch (Exception e) { throw new IllegalStateException(e); }
-        db.queryForList("select pg_advisory_xact_lock(hashtextextended(?,0))",p.operacionId().toString());
-        var rows=db.queryForList("select id,checkout_payload from pedidos where operacion_id=?",p.operacionId());
-        if (!rows.isEmpty()) {
-            if (!fingerprint.equals(rows.get(0).get("checkout_payload"))) throw error(HttpStatus.CONFLICT,"OPERATION_CONFLICT");
-            return result(rows.get(0).get("id"),p);
+        try {
+            return transaction.execute(status -> result(insert(p, fingerprint), p));
+        } catch (DuplicateKeyException duplicate) {
+            // Both databases enforce operation/payment uniqueness. Resolve the conflict
+            // after rollback, since PostgreSQL rejects further SQL in the failed transaction.
+            var previous = db.query("select id,checkout_payload from pedidos where operacion_id=?",
+                    (rs, row) -> new SavedOperation(rs.getLong("id"), rs.getString("checkout_payload")),
+                    p.operacionId());
+            if (!previous.isEmpty()) {
+                SavedOperation saved = previous.get(0);
+                if (!fingerprint.equals(saved.payload())) {
+                    throw error(HttpStatus.CONFLICT,"OPERATION_CONFLICT");
+                }
+                return result(saved.id(), p);
+            }
+            if (!db.queryForList("select id from pedidos where pago_id=?", p.pagoId()).isEmpty()) {
+                throw error(HttpStatus.CONFLICT,"PAYMENT_ALREADY_USED");
+            }
+            throw duplicate;
         }
-        db.queryForList("select pg_advisory_xact_lock(hashtextextended(?,1))",p.pagoId().toString());
-        if (!db.queryForList("select id from pedidos where pago_id=?",p.pagoId()).isEmpty()) throw error(HttpStatus.CONFLICT,"PAYMENT_ALREADY_USED");
-        Long id=db.queryForObject("insert into pedidos(usuario_id,email_usuario,fecha_creacion,total,estado,operacion_id,pago_id,tenant_id,payment_status,simulacion,checkout_payload) "
-            +"values(?,'',localtimestamp,?,'PENDIENTE',?,?,?,'APPROVED_SIMULATED',true,?) returning id",Long.class,
-            p.ownerId().toString(),p.importe(),p.operacionId(),p.pagoId(),p.tenantId(),fingerprint);
+    }
+
+    private record SavedOperation(long id, String payload) {}
+
+    private long insert(Paid p, String fingerprint) {
+        var keyHolder = new GeneratedKeyHolder();
+        db.update(connection -> {
+            var statement = connection.prepareStatement("""
+                insert into pedidos(usuario_id,email_usuario,fecha_creacion,total,estado,operacion_id,
+                                    pago_id,tenant_id,payment_status,simulacion,checkout_payload)
+                values(?,'',localtimestamp,?,'PENDIENTE',?,?,?,'APPROVED_SIMULATED',true,?)
+                """, new String[]{"id"});
+            statement.setString(1, p.ownerId().toString());
+            statement.setBigDecimal(2, p.importe());
+            statement.setObject(3, p.operacionId());
+            statement.setObject(4, p.pagoId());
+            statement.setObject(5, p.tenantId());
+            statement.setString(6, fingerprint);
+            return statement;
+        }, keyHolder);
+        long id = Objects.requireNonNull(keyHolder.getKey()).longValue();
         for (Item i:p.items()) db.update("insert into item_pedido(pedido_id,producto_id,nombre_producto,cantidad,precio_unitario) values(?,?,?,?,?)",
             id,i.productoId(),i.nombreProducto(),i.cantidad(),i.precioUnitario());
-        return result(id,p);
+        return id;
     }
     private Map<String,Object> result(Object id,Paid p) {
         return Map.of("pedidoId",id,"pagoId",p.pagoId(),"total",p.importe(),"estado","PENDIENTE",

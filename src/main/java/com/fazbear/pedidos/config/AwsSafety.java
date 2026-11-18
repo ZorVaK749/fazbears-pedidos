@@ -4,6 +4,7 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
+import java.util.Locale;
 
 @Component
 @Profile("ev3-aws")
@@ -18,6 +19,7 @@ public class AwsSafety implements InitializingBean {
         boolean isMemH2 = url.startsWith("jdbc:h2:mem:");
         boolean isPostgresSafe = isPostgres && "validate".equals(ddl);
         boolean isH2Safe = isPersistentH2 && ("update".equals(ddl) || "validate".equals(ddl));
+        String internalKey = env.getProperty("INTERNAL_SERVICE_KEY", "").strip();
 
         if (env.matchesProfiles("local", "ev3-local", "test")
                 || !env.getProperty("LOCAL_JWT_JWK_SET_URI", "").isBlank()
@@ -26,7 +28,9 @@ public class AwsSafety implements InitializingBean {
                 || isMemH2
                 || (!isPostgresSafe && !isH2Safe)
                 || env.getProperty("spring.h2.console.enabled", Boolean.class, false)
-                || env.getProperty("INTERNAL_SERVICE_KEY", "").length() < 32)
+                || internalKey.length() < 32
+                || internalKey.toLowerCase(Locale.ROOT).startsWith("synthetic-")
+                || !internalKey.equals(env.getProperty("checkout.service-key", "")))
             throw new IllegalStateException("UNSAFE_EV3_AWS_CONFIGURATION");
     }
 }

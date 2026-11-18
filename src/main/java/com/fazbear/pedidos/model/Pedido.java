@@ -28,6 +28,8 @@ public class Pedido {
     private String paymentStatus;
     @Column(nullable = false)
     private boolean simulacion;
+    @Column(name = "checkout_payload", columnDefinition = "text")
+    private String checkoutPayload;
 
     public java.util.UUID getOperacionId() { return operacionId; }
     public java.util.UUID getPagoId() { return pagoId; }
