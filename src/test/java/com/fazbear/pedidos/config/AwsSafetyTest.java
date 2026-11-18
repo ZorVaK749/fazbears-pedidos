@@ -11,15 +11,29 @@ class AwsSafetyTest {
         .withProperty("spring.jpa.hibernate.ddl-auto","validate").withProperty("INTERNAL_SERVICE_KEY","synthetic-test-only-service-key-32");
         e.setActiveProfiles("ev3-aws"); return e; }
     @Test void permitsAwsWithoutLabIdentity() { assertDoesNotThrow(() -> new AwsSafety(safe()).afterPropertiesSet()); }
+    @Test void permitsPersistentH2FileWithUpdate() {
+        var e = new MockEnvironment()
+            .withProperty("spring.datasource.url", "jdbc:h2:file:/var/lib/fazbear/pedidos/pedidosdb")
+            .withProperty("spring.jpa.hibernate.ddl-auto", "update")
+            .withProperty("INTERNAL_SERVICE_KEY", "synthetic-test-only-service-key-32");
+        e.setActiveProfiles("ev3-aws");
+        assertDoesNotThrow(() -> new AwsSafety(e).afterPropertiesSet());
+    }
     @ParameterizedTest @ValueSource(strings={"local", "ev3-local", "test"})
     void rejectsMixedProfiles(String p) { var e=safe(); e.setActiveProfiles("ev3-aws",p);
         assertThrows(IllegalStateException.class, () -> new AwsSafety(e).afterPropertiesSet()); }
     @ParameterizedTest @ValueSource(strings={"LOCAL_JWT_JWK_SET_URI", "spring.security.oauth2.resourceserver.jwt.jwk-set-uri"})
     void rejectsJwksOverride(String key) { var e=safe().withProperty(key,"http://lab-auth/jwks");
         assertThrows(IllegalStateException.class, () -> new AwsSafety(e).afterPropertiesSet()); }
-    @ParameterizedTest @ValueSource(strings={"create", "create-drop", "update"})
+    @ParameterizedTest @ValueSource(strings={"create", "create-drop"})
     void rejectsImplicitSchemaMutation(String ddl) { var e=safe().withProperty("spring.jpa.hibernate.ddl-auto",ddl);
         assertThrows(IllegalStateException.class, () -> new AwsSafety(e).afterPropertiesSet()); }
+    @Test void rejectsH2Mem() { var e=safe().withProperty("spring.datasource.url","jdbc:h2:mem:unsafe");
+        assertThrows(IllegalStateException.class, () -> new AwsSafety(e).afterPropertiesSet()); }
+    @Test void rejectsShortInternalServiceKey() {
+        var e = safe().withProperty("INTERNAL_SERVICE_KEY", "short-key");
+        assertThrows(IllegalStateException.class, () -> new AwsSafety(e).afterPropertiesSet());
+    }
     @Test void awsEnablesPaidOrders() {
         var profile= com.fazbear.pedidos.controller.InternalPaidPedidoController.class.getAnnotation(org.springframework.context.annotation.Profile.class);
         assertTrue(java.util.Arrays.asList(profile.value()).contains("ev3-aws"));
