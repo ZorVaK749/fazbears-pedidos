@@ -21,7 +21,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class InternalPaidPedidoController {
     public record Item(Long productoId,String nombreProducto,Integer cantidad,BigDecimal precioUnitario) {}
     public record Paid(UUID operacionId,UUID pagoId,UUID tenantId,UUID ownerId,BigDecimal importe,
-                       String moneda,boolean simulacion,List<Item> items) {}
+                       String moneda,Boolean simulacion,List<Item> items) {}
     private final JdbcTemplate db;
     private final TransactionTemplate transaction;
     private final String key,tenant;
@@ -37,7 +37,7 @@ public class InternalPaidPedidoController {
         if (supplied==null || !MessageDigest.isEqual(key.getBytes(StandardCharsets.UTF_8),supplied.getBytes(StandardCharsets.UTF_8)))
             throw error(HttpStatus.UNAUTHORIZED,"INVALID_SERVICE_KEY");
         if (p==null || p.operacionId()==null || p.pagoId()==null || p.ownerId()==null || p.tenantId()==null
-                || !tenant.equals(p.tenantId().toString()) || !p.simulacion() || !"CLP".equals(p.moneda())
+                || !tenant.equals(p.tenantId().toString()) || p.simulacion()==null || !"CLP".equals(p.moneda())
                 || p.importe()==null || p.importe().signum()<=0 || p.items()==null || p.items().isEmpty() || p.items().size()>100)
             throw error(HttpStatus.BAD_REQUEST,"INVALID_PAID_ORDER");
         BigDecimal calculated=BigDecimal.ZERO; Set<Long> ids=new HashSet<>();
@@ -84,14 +84,16 @@ public class InternalPaidPedidoController {
             var statement = connection.prepareStatement("""
                 insert into pedidos(usuario_id,email_usuario,fecha_creacion,total,estado,operacion_id,
                                     pago_id,tenant_id,payment_status,simulacion,checkout_payload)
-                values(?,'',localtimestamp,?,'PENDIENTE',?,?,?,'APPROVED_SIMULATED',true,?)
+                values(?,'',localtimestamp,?,'PENDIENTE',?,?,?,?,?,?)
                 """, new String[]{"id"});
             statement.setString(1, p.ownerId().toString());
             statement.setBigDecimal(2, p.importe());
             statement.setObject(3, p.operacionId());
             statement.setObject(4, p.pagoId());
             statement.setObject(5, p.tenantId());
-            statement.setString(6, fingerprint);
+            statement.setString(6, paymentStatus(p));
+            statement.setBoolean(7, p.simulacion());
+            statement.setString(8, fingerprint);
             return statement;
         }, keyHolder);
         long id = Objects.requireNonNull(keyHolder.getKey()).longValue();
@@ -101,7 +103,10 @@ public class InternalPaidPedidoController {
     }
     private Map<String,Object> result(Object id,Paid p) {
         return Map.of("pedidoId",id,"pagoId",p.pagoId(),"total",p.importe(),"estado","PENDIENTE",
-            "paymentStatus","APPROVED_SIMULATED","simulacion",true);
+            "paymentStatus",paymentStatus(p),"simulacion",p.simulacion());
+    }
+    private String paymentStatus(Paid paid) {
+        return paid.simulacion() ? "APPROVED_SIMULATED" : "APPROVED_WEBPAY_INTEGRATION";
     }
     private ResponseStatusException error(HttpStatus status,String message) { return new ResponseStatusException(status,message); }
 }

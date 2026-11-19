@@ -88,6 +88,18 @@ class PedidoEffectiveProfileStartupTest {
     }
 
     @Test
+    void confirmedWebpayOrdersRetainTheProviderModeInAwsH2() {
+        var request = new Paid(UUID.randomUUID(), UUID.randomUUID(),
+                UUID.fromString("ee0d2c5b-e60b-4c57-9b30-8a38a520c430"), UUID.randomUUID(),
+                new BigDecimal("1250.00"), "CLP", false, List.of(new Item(1L, "Pizza", 1, new BigDecimal("1250.00"))));
+        var first = paidOrders.create(TEST_KEY, request);
+        assertThat(paidOrders.create(TEST_KEY, request)).isEqualTo(first);
+        assertThat(pedidoRepository.findById((Long) first.get("pedidoId")).orElseThrow().getPaymentStatus())
+                .isEqualTo("APPROVED_WEBPAY_INTEGRATION");
+        assertThat(first).containsEntry("simulacion", false);
+    }
+
+    @Test
     void concurrentPaidRetriesUseTheAwsFileSchemaAndRegisterOneOrder() throws Exception {
         var operation = UUID.randomUUID();
         var payment = UUID.randomUUID();
